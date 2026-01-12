@@ -116,10 +116,32 @@ jobs:
         working-directory: aseprite
         run: |
           cd build && ninja
-      - name: Clean Up Build folder
+      - name: Clean build folder (preserve artifacts)
         working-directory: aseprite/build/bin
         shell: bash
-        run: find . -mindepth 1 ! \( -name 'aseprite' -o -name 'aseprite.exe' -o -name 'data' -prune \) -exec rm -rf {} +
+        run: |
+          echo "Cleaning build/bin but preserving aseprite, aseprite.exe and data"
+          shopt -s dotglob 2>/dev/null || true
+          for f in * .[!.]* ..?*; do
+            [[ "$f" == "." || "$f" == ".." ]] && continue
+            if [[ "$f" == "aseprite" || "$f" == "aseprite.exe" || "$f" == "data" ]]; then
+              continue
+            fi
+            rm -rf "$f"
+          done
+          echo "After clean:"; ls -la
+
+      - name: Verify artifacts
+        working-directory: aseprite/build/bin
+        shell: bash
+        run: |
+          echo "Verify artifacts in $(pwd):"; ls -la
+          if [ ! -f aseprite ] && [ ! -f aseprite.exe ]; then
+            echo "ERROR: aseprite binary missing — aborting"; exit 1
+          fi
+          if [ ! -d data ]; then
+            echo "ERROR: data directory missing — aborting"; exit 1
+          fi
       - name: Make portable zip
         working-directory: aseprite/build/bin
         run: echo '# This file is here so Aseprite behaves as a portable program' > aseprite.ini
